@@ -5,11 +5,11 @@ TITLE_ID    := LOAD00044
 CONTENT_ID  := IV0000-LOAD00044_00-SDL2GLES20000000
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -ldbglogger -lSceSystemService -lSceSysmodule -lScePigletv2VSH -lSceAudioOut -lScePad \
+LIBS        := -lc -lkernel -lc++ -lSceVideoOut -ldbglogger -lSceSystemService -lSceSysmodule -lScePigletv2VSH -lSceAudioOut -lScePad \
 				-lSceUserService -lSceFreeType -lSDL2 -lSDL2_image -lzip -lz -lSceNetCtl
 
 # Additional compile flags.
-#EXTRAFLAGS  := 
+EXTRAFLAGS  := -DGRAPHICS_USES_FONT
 
 # Asset and module directories.
 ASSETS 		:= $(wildcard assets/**/*)
@@ -21,11 +21,13 @@ LIBMODULES  := $(wildcard sce_module/*)
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 PROJDIR     := $(shell basename $(CURDIR))
 INTDIR      := $(PROJDIR)/x64/Debug
+COMMONDIR   := $(PROJDIR)/_common
 
 # Define objects to build
 CFILES      := $(wildcard $(PROJDIR)/*.c)
 CPPFILES    := $(wildcard $(PROJDIR)/*.cpp)
-OBJS        := $(patsubst $(PROJDIR)/%.c, $(INTDIR)/%.o, $(CFILES)) $(patsubst $(PROJDIR)/%.cpp, $(INTDIR)/%.o, $(CPPFILES))
+COMMONFILES := $(wildcard $(COMMONDIR)/*.cpp)
+OBJS        := $(patsubst $(PROJDIR)/%.c, $(INTDIR)/%.o, $(CFILES)) $(patsubst $(PROJDIR)/%.cpp, $(INTDIR)/%.o, $(CPPFILES)) $(patsubst $(COMMONDIR)/%.cpp, $(INTDIR)/%.o, $(COMMONFILES))
 
 # Define final C/C++ flags
 CFLAGS      := --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include -Iinclude
@@ -64,7 +66,7 @@ sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_TYPE --type Integer --maxsize 4 --value 1
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 4 --value 32
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gde'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gd'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CONTENT_ID --type Utf8 --maxsize 48 --value '$(CONTENT_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ SYSTEM_VER --type Integer --maxsize 4 --value 0
@@ -74,12 +76,18 @@ sce_sys/param.sfo: Makefile
 
 eboot.bin: $(INTDIR) $(OBJS)
 	$(LD) $(INTDIR)/*.o -o $(INTDIR)/$(PROJDIR).elf $(LDFLAGS)
-	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/$(PROJDIR).elf -out=$(INTDIR)/$(PROJDIR).oelf --eboot "eboot.bin" --paid 0x3800000000000011 --authinfo 000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(INTDIR)/$(PROJDIR).elf -out=$(INTDIR)/$(PROJDIR).oelf --eboot "eboot.bin" --paid 0x3800000000000011
 
 $(INTDIR)/%.o: $(PROJDIR)/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(INTDIR)/%.o: $(PROJDIR)/%.cpp
+	$(CCX) $(CXXFLAGS) -o $@ $<
+
+$(INTDIR)/%.o: $(COMMONDIR)/%.c
+	$(CCX) $(CXXFLAGS) -o $@ $<
+
+$(INTDIR)/%.o: $(COMMONDIR)/%.cpp
 	$(CCX) $(CXXFLAGS) -o $@ $<
 
 clean:

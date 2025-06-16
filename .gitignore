@@ -50,3 +50,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/**/*.pkg
+/**/eboot.bin
+/**/*.gp4
+/**/build/
+/**/Debug/
+
+.vscode/
